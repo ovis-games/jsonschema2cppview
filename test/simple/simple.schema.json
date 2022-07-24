@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "Test",
+  "title": "Test",
+  "description": "A Test",
+  "type": "object",
+  "properties": {
+    "name": "string",
+    "definitionType": "type",
+    "properties": {
+      "type": "array",
+      "items": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": ["name", "definitionType", "properties"]
+}
