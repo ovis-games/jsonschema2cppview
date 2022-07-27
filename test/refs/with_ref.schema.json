@@ -1,19 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "Test",
-  "description": "A Test",
+  "$id": "WithRef",
   "type": "object",
   "properties": {
-    "name": {
+    "one": {
       "type": "string"
     },
-    "properties": {
+    "array": {
       "type": "array",
       "items": {
-        "type": "string"
+        "$ref": "simple.schema.json"
       }
     }
   },
   "additionalProperties": false,
-  "required": ["name", "properties"]
+  "required": ["one", "array"]
 }
