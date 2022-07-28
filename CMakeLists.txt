@@ -27,6 +27,10 @@ add_custom_target(
     ${CMAKE_SOURCE_DIR}/node_modules
 )
 
+option(JSONSCHEMA2CPPVIEW_BUILD_TESTS "Build tests" OFF)
+
+include(FetchContent)
+
 function(add_json_schemas)
   set(options)
   set(oneValueArgs TARGET JSON_LIBRARY)
@@ -37,15 +41,16 @@ function(add_json_schemas)
   set(SOURCE_FILES)
 
   if (ADD_JSON_SCHEMAS_JSON_LIBRARY STREQUAL "nlohmann_json")
-    include(FetchContent)
-    FetchContent_Declare(
-      nlohmann_json
-      GIT_REPOSITORY https://github.com/nlohmann/json.git
-      GIT_TAG v3.10.5
-    )
-    FetchContent_MakeAvailable(
-      nlohmann_json
-    )
+    if (NOT TARGET nlohmann_json::nlohmann_json)
+      FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.10.5
+      )
+      FetchContent_MakeAvailable(
+        nlohmann_json
+      )
+    endif ()
 
     # find_package(nlohmann_json REQUIRED)
     list(APPEND DEPENDENCIES "nlohmann_json::nlohmann_json")
@@ -95,4 +100,6 @@ function(add_json_schemas)
 
 endfunction(add_json_schemas)
 
-add_subdirectory(test)
+if (JSONSCHEMA2CPPVIEW_BUILD_TESTS)
+  add_subdirectory(test)
+endif ()
