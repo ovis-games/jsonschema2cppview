@@ -2,6 +2,8 @@ import { readFile, writeFile } from 'fs/promises';
 import { JSONSchema7 } from 'json-schema';
 import path from 'path';
 
+let inputDirectory: string|undefined;
+
 abstract class CodeGenerator {
   dependencies = "";
   headerFileContent = "";
@@ -23,6 +25,10 @@ abstract class CodeGenerator {
   abstract startClass(name: string): void;
   abstract defineProperty(name: string, type: string, optional: boolean): void;
   abstract endClass(name: string): void;
+
+  addTypeDef(oldname: string, newname: string) {
+    this.writeHeader(`using ${newname} = ${oldname};`);
+  }
 }
 
 class NlohmannJSONCodeGenerator extends CodeGenerator {
@@ -70,7 +76,7 @@ class ${name} {
 
 async function getRefId(ref: string): Promise<string|undefined> {
   try {
-    return JSON.parse(await readFile(ref, { encoding: 'utf8' } ))['$id']
+    return JSON.parse(await readFile(path.join(inputDirectory || '.', ref), { encoding: 'utf8' } ))['title']
   } catch (error) {
     console.error(error);
     return undefined;
@@ -78,7 +84,7 @@ async function getRefId(ref: string): Promise<string|undefined> {
 }
 
 async function generateCodeForObject(generator: CodeGenerator, schema: JSONSchema7, nameBase?: string): Promise<string|undefined> {
-  const name = schema.$id || nameBase || 'Temp';
+  const name = schema.title || nameBase || 'Temp';
 
   generator.startClass(name);
 
@@ -109,15 +115,32 @@ async function generateCodeForArray(generator: CodeGenerator, schema: JSONSchema
   return `jsonschema2cppview::Array<${itemType}>` || "";
 }
 
-async function generateCodeForSchema(generator: CodeGenerator, schema: JSONSchema7, nameBase?: string): Promise<string|undefined> {
+async function generateCodeForSchema(generator: CodeGenerator, schema: JSONSchema7, nameSuggestion: string): Promise<string|undefined> {
+  const typename = schema.title || nameSuggestion;
   switch (schema.type) {
-    case 'number': return 'double';
-    case 'boolean': return 'bool';
-    case 'object': return await generateCodeForObject(generator, schema, nameBase);
-    case 'string': return 'std::string';
-    case 'array': return await generateCodeForArray(generator, schema, nameBase);
+    case 'number':
+      generator.addTypeDef('double', typename);
+      return typename;
+
+    case 'boolean':
+      generator.addTypeDef('bool', typename);
+      return typename;
+
+    case 'object':
+      return await generateCodeForObject(generator, schema, nameSuggestion);
+
+    case 'string':
+      generator.addTypeDef('std::string', typename);
+      return typename;
+
+    case 'array':
+      return await generateCodeForArray(generator, schema, nameSuggestion);
+
     case 'null': return 'unknown';
-    case 'integer': return 'std::intmax_t';
+
+    case 'integer':
+      generator.addTypeDef('std::intmax_t', typename);
+      return typename;
   }
 
   if (schema.$ref) {
@@ -131,13 +154,14 @@ async function generateCodeForSchema(generator: CodeGenerator, schema: JSONSchem
 
 async function generateCodeForFile(generator: CodeGenerator, filename: string) {
   const document = JSON.parse(await readFile(filename, { encoding: 'utf8' }));
-  await generateCodeForSchema(generator, document as JSONSchema7);
+  await generateCodeForSchema(generator, document as JSONSchema7, filename);
 }
 
 async function main() {
   const inputFile = process.argv[2];
   const outputDirectory = process.argv[3];
   const parsedPath = path.parse(inputFile);
+  inputDirectory = parsedPath.dir;
 
   const outputHeaderFilePath = path.join(outputDirectory, `${parsedPath.name}.hpp`);
   const outputSourceFilePath = path.join(outputDirectory, `${parsedPath.name}.cpp`);
